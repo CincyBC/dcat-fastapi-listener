@@ -74,3 +74,15 @@ class TestInstallHook:
             with engine.connect() as conn:
                 conn.execute(text("CREATE TABLE t (id INTEGER)"))
                 conn.execute(text("SELECT 1"))
+
+    def test_install_hook_accepts_async_engine(self):
+        from sqlalchemy import event
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        async_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        buf = QueryBuffer(max_entries=100)
+
+        install_hook(async_engine, buf)
+
+        listeners = list(async_engine.sync_engine.dispatch.before_cursor_execute)
+        assert len(listeners) > 0

@@ -34,7 +34,9 @@ class QueryBuffer:
 
 
 def install_hook(engine, buf: QueryBuffer) -> None:
-    @event.listens_for(engine, "before_cursor_execute")
+    target = getattr(engine, "sync_engine", engine)
+
+    @event.listens_for(target, "before_cursor_execute")
     def _on_execute(conn, cursor, statement, parameters, context, executemany):
         try:
             route = get_current_route()
