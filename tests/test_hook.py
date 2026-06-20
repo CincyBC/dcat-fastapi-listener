@@ -36,6 +36,42 @@ class TestQueryBuffer:
         buf.clear()
         assert buf.snapshot() == {}
 
+    def test_record_columns(self):
+        buf = QueryBuffer(max_entries=100)
+        buf.record("GET", "/v1/users", {"users"}, {"users": {"id", "name"}})
+        assert buf.get_columns("GET", "/v1/users") == {"users": {"id", "name"}}
+
+    def test_record_columns_merge(self):
+        buf = QueryBuffer(max_entries=100)
+        buf.record("GET", "/v1/users", {"users"}, {"users": {"id"}})
+        buf.record("GET", "/v1/users", {"users"}, {"users": {"name"}})
+        assert buf.get_columns("GET", "/v1/users") == {"users": {"id", "name"}}
+
+    def test_columns_empty_when_not_recorded(self):
+        buf = QueryBuffer(max_entries=100)
+        buf.record("GET", "/v1/users", {"users"})
+        assert buf.get_columns("GET", "/v1/users") == {}
+
+    def test_snapshot_columns(self):
+        buf = QueryBuffer(max_entries=100)
+        buf.record("GET", "/v1/users", {"users"}, {"users": {"id"}})
+        snap = buf.snapshot_columns()
+        buf.record("GET", "/v1/users", {"users"}, {"users": {"name"}})
+        assert "name" not in snap[("GET", "/v1/users")]["users"]
+
+    def test_clear_also_clears_columns(self):
+        buf = QueryBuffer(max_entries=100)
+        buf.record("GET", "/v1/users", {"users"}, {"users": {"id"}})
+        buf.clear()
+        assert buf.snapshot_columns() == {}
+
+    def test_eviction_clears_columns(self):
+        buf = QueryBuffer(max_entries=2)
+        buf.record("GET", "/v1/a", {"a"}, {"a": {"id"}})
+        buf.record("GET", "/v1/b", {"b"}, {"b": {"id"}})
+        buf.record("GET", "/v1/c", {"c"}, {"c": {"id"}})
+        assert buf.get_columns("GET", "/v1/a") == {}
+
 
 class TestInstallHook:
     def test_captures_query_with_context(self):

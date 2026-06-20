@@ -1,4 +1,4 @@
-from dcat_listener.sql import extract_tables
+from dcat_listener.sql import extract_columns, extract_tables
 
 
 class TestExtractTables:
@@ -51,3 +51,51 @@ class TestExtractTables:
             "JOIN parcels.parcel_data p ON a.id = p.address_id"
         )
         assert result == {"location.addresses", "parcels.parcel_data"}
+
+
+class TestExtractColumns:
+    def test_simple_select(self):
+        result = extract_columns("SELECT id, name FROM users")
+        assert result == {"users": {"id", "name"}}
+
+    def test_aliased_table(self):
+        result = extract_columns("SELECT u.id, u.name FROM users u")
+        assert result == {"users": {"id", "name"}}
+
+    def test_join_columns_per_table(self):
+        result = extract_columns(
+            "SELECT u.name, o.total FROM users u JOIN orders o ON u.id = o.user_id"
+        )
+        assert result == {"users": {"name", "id"}, "orders": {"total", "user_id"}}
+
+    def test_schema_qualified_table(self):
+        result = extract_columns("SELECT a.id, a.street FROM location.addresses a")
+        assert result == {"location.addresses": {"id", "street"}}
+
+    def test_multiple_schema_tables(self):
+        result = extract_columns(
+            "SELECT a.id, p.number FROM location.addresses a "
+            "JOIN parcels.parcel_data p ON a.id = p.address_id"
+        )
+        assert result == {
+            "location.addresses": {"id"},
+            "parcels.parcel_data": {"number", "address_id"},
+        }
+
+    def test_star_is_skipped(self):
+        result = extract_columns("SELECT * FROM users")
+        assert result == {}
+
+    def test_not_a_select(self):
+        result = extract_columns("INSERT INTO users (name) VALUES ('x')")
+        assert result == {}
+
+    def test_none(self):
+        assert extract_columns(None) == {}
+
+    def test_garbage(self):
+        assert extract_columns("not sql") == {}
+
+    def test_single_table_unqualified_columns(self):
+        result = extract_columns("SELECT id, name FROM users")
+        assert result == {"users": {"id", "name"}}

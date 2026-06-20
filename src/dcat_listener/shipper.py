@@ -13,10 +13,19 @@ class Shipper:
 
     def build_payload(self) -> dict:
         snap = self._buf.snapshot()
+        col_snap = self._buf.snapshot_columns()
         return {
             "api_slug": self._api_slug,
             "mappings": [
-                {"method": method, "path": path, "tables": sorted(tables)}
+                {
+                    "method": method,
+                    "path": path,
+                    "tables": sorted(tables),
+                    "columns": {
+                        t: sorted(c)
+                        for t, c in col_snap.get((method, path), {}).items()
+                    } or None,
+                }
                 for (method, path), tables in snap.items()
             ],
         }

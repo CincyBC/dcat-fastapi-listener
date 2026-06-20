@@ -29,6 +29,25 @@ class TestShipperPayload:
         payload = shipper.build_payload()
         assert payload["mappings"] == []
 
+    def test_build_payload_includes_columns(self):
+        buf = QueryBuffer(max_entries=100)
+        buf.record("GET", "/v1/users", {"users"}, {"users": {"id", "name"}})
+
+        shipper = Shipper(buf, catalog_url="http://catalog/api/v1/lineage/sql", api_slug="my-api")
+        payload = shipper.build_payload()
+
+        m = payload["mappings"][0]
+        assert m["columns"] == {"users": ["id", "name"]}
+
+    def test_build_payload_null_columns_when_none(self):
+        buf = QueryBuffer(max_entries=100)
+        buf.record("GET", "/v1/users", {"users"})
+
+        shipper = Shipper(buf, catalog_url="http://catalog/api/v1/lineage/sql", api_slug="my-api")
+        payload = shipper.build_payload()
+
+        assert payload["mappings"][0]["columns"] is None
+
 
 class TestShipperFlush:
     @pytest.mark.asyncio
